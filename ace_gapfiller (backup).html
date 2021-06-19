@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>ACE in Action</title>
+<script src="https://pagecdn.io/lib/ace/1.4.12/ace.min.js" crossorigin="anonymous" integrity="sha256-T5QdmsCQO5z8tBAXMrCZ4f3RX8wVdiA0Fu17FGnU1vU=" ></script>
+<style type="text/css" media="screen">
+    #editor { 
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+    }
+    .test {
+        color: red;
+    }
+    .my_token {
+        color: red;
+    }
+    .gray {
+  position: absolute;
+  background-color: #CDCDCD;
+  /* outline: 1px solid black; */
+}
+</style>
+</head>
+<body>
+
+<div id="editor">def main():
+    """Demo gapfiller"""
+    result =     
+    print(f"The result is {          } formated to 2 decimal places!")
+</div>
+    
+
+<script>
+    var editor = ace.edit("editor");
+    editor.session.setMode("ace/mode/python");
+    var Range = ace.require("ace/range").Range;
+    
+
+    // Define area of gaps.
+    var gaps = [
+        {
+            startLine: 2,
+            startCol: 13,
+            endLine: 2,
+            endCol: 17,
+        },
+        {
+            startLine: 3,
+            startCol: 27,
+            endLine: 3,
+            endCol: 37,
+        }
+    ]
+
+    const fillChar = " "
+
+    function cursorInGap(cursor, gap) {
+        return (cursor.row >= gap.startLine && cursor.column >= gap.startCol && 
+                cursor.row <= gap.endLine && cursor.column <= gap.endCol);
+    }
+
+    // Highlight the gaps.
+    for (var i = 0; i < gaps.length; i++) {
+        var gap = gaps[i];
+        editor.session.addMarker(new Range(gap.startLine, gap.startCol, gap.endLine, gap.endCol), "gray", "text");
+    }
+
+    // Intercept commands sent to ace.
+    editor.commands.on("exec", function(e) { 
+        var cursor = editor.selection.getCursor();
+        var commandName = e.command.name;
+        // console.log(e);
+        // console.log(cursor)
+        if (commandName.startsWith("go")) {  // If command just moves the cursor then do nothing.
+            return;
+        } else {
+            var shouldPreventDefault = true;
+            for (var i = 0; i < gaps.length; i++) {
+                var gap = gaps[i];
+
+                if (commandName === "backspace") { // If we get a backspace command then we insert the 'fillChar'.
+                    if (cursorInGap({row: cursor.row, column: cursor.column-1}, gap) ) {
+                        editor.session.remove(new Range(cursor.row, cursor.column-1, cursor.row, cursor.column));
+                        editor.session.insert({row: cursor.row, column: cursor.column-1}, fillChar);
+                        editor.moveCursorTo(cursor.row, cursor.column-1);
+                        shouldPreventDefault = true;
+                    }
+                } else if (commandName === "del") {
+                    if (cursorInGap({row: cursor.row, column: cursor.column+1}, gap)) {
+                        editor.session.insert({row: cursor.row, column: cursor.column+1}, fillChar);
+                        shouldPreventDefault = false;
+                    }
+                } else {    // Otherwise remove a 'fillChar' and fill in the gap with whatever char the user pressed.
+                    if (cursorInGap({row: cursor.row, column: cursor.column+1}, gap)) {
+                        editor.session.remove(new Range(cursor.row, cursor.column, cursor.row, cursor.column+1));
+                        shouldPreventDefault = false;
+                    }
+                }
+            }
+
+            if (shouldPreventDefault) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }
+  });
+
+//   editor.session.on('change', function(delta) {
+//     console.log(delta)
+// });
+
+</script>
+</body>
+</html>
