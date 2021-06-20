@@ -68,7 +68,7 @@ function reEscape(s) {
     return result;
 }
 
-let code = editor.getValue();
+let code = editor.session.getValue();
 let lines = code.split(/\r?\n/);
 
 let sepLeft = reEscape('{[');
@@ -102,7 +102,7 @@ for (let i = 0; i < lines.length; i++) {
     }
 }
 
-editor.setValue(result);
+editor.session.setValue(result);
 
 
 // Add highlight the gaps.
