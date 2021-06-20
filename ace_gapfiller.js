@@ -4,7 +4,7 @@ var editor = ace.edit("editor");
     
 
     // Define area of gaps.
-    var gaps = [
+    var gaps_old = [
         {
             startLine: 2,
             startCol: 13,
@@ -27,23 +27,35 @@ var editor = ace.edit("editor");
         }
     ]
 
+    var gaps = [
+        {
+            range: new Range(2, 13, 2, 17),
+
+            minWidth: 4,
+            maxWidth: 10,
+            text:""
+        },
+        {
+            range: new Range(3, 27, 3, 37),
+
+            minWidth: 10,
+            maxWidth: 15,
+            text:""
+        }
+    ]
+
     const fillChar = " ";
     const validChars = /[ !"#$%&'()*+`\-./0-9:;<=>?@A-Z\[\]\\^_a-z{}|~]/
 
     function cursorInGap(cursor, gap) {
-        return (cursor.row >= gap.startLine && cursor.column >= gap.startCol && 
-                cursor.row <= gap.endLine && cursor.column < gap.endCol);
-    }
-
-    function updateGap(gap) {
-        // Need better way to do this. need to give gaps an id and store when this changes?
-        editor.session.addMarker(new Range(gap.startLine, gap.startCol, gap.endLine, gap.endCol), "ace-gap", "text");
+        return (cursor.row >= gap.range.start.row && cursor.column >= gap.range.start.column  && 
+                cursor.row <= gap.range.end.row && cursor.column < gap.range.end.column);
     }
 
     // Highlight the gaps.
     for (var i = 0; i < gaps.length; i++) {
         var gap = gaps[i];
-        updateGap(gap);
+        editor.session.addMarker(gap.range, "ace-gap", "text");
     }
 
     // Intercept commands sent to ace.
@@ -53,8 +65,8 @@ var editor = ace.edit("editor");
         selectionRange = editor.getSelectionRange();
         selectionRange.end.column -= 1;
 
-        console.log(selectionRange);
-        console.log(e);
+        // console.log(selectionRange);
+        // console.log(e);
         // console.log(cursor)
         if (commandName.startsWith("go")) {  // If command just moves the cursor then do nothing.
             return;
@@ -71,11 +83,11 @@ var editor = ace.edit("editor");
                     continue;
                 }
 
-                // TODO: write code  that finds the nearest gap. Could later be upgraded with a binary search.
+                // TODO: write code that finds the nearest gap. Could later be upgraded with a binary search.
                 if (cursorInGap({row: cursor.row, column: cursor.column}, gap)) {
                     if (commandName === "backspace") { // If we get a backspace command then we insert the 'fillChar'.
                         editor.session.remove(new Range(cursor.row, cursor.column, cursor.row, cursor.column+1));
-                        editor.session.insert({row: cursor.row, column: gap.endCol-1}, fillChar);   // Put new space at end so everything is shifted across.
+                        editor.session.insert({row: cursor.row, column: gap.range.end.column-1}, fillChar);   // Put new space at end so everything is shifted across.
                         editor.moveCursorTo(cursor.row, cursor.column);
                         if (!editor.selection.isEmpty()) {
                             editor.moveCursorTo(selectionRange.start.row, selectionRange.start.column);
@@ -89,12 +101,11 @@ var editor = ace.edit("editor");
                         if (validChars.test(e.args)) {
                             if (editor.selection.isEmpty()) {
                                 shouldPreventDefault = false;
-                                if (gap.text.length == (gap.endCol-gap.startCol) && (gap.endCol-gap.startCol) < gap.maxWidth) {
-                                    gap.endCol += 1;
-                                    updateGap(gap);
+                                if (gap.text.length == (gap.range.end.column-gap.range.start.column) && (gap.range.end.column-gap.range.start.column) < gap.maxWidth) {
+                                    gap.range.end.column += 1;
                                 } else if (gap.text.length < gap.maxWidth) {
-                                    console.log(gap.text)
-                                    editor.session.remove(new Range(cursor.row, gap.endCol-1, cursor.row, gap.endCol));
+                                    // console.log(gap.text)
+                                    editor.session.remove(new Range(cursor.row, gap.range.end.column-1, cursor.row, gap.range.end.column));
                                 } else {
                                     shouldPreventDefault = true;
                                 }
@@ -109,9 +120,6 @@ var editor = ace.edit("editor");
                     }
                     
                 }
-
-                
-                
             }
 
             if (shouldPreventDefault) {
@@ -125,13 +133,13 @@ var editor = ace.edit("editor");
     // Update text that the gap stores.
     for (var i = 0; i < gaps.length; i++) {
         gap = gaps[i];
-        gap.text = editor.session.doc.getTextRange(new Range(gap.startLine, gap.startCol, gap.endLine, gap.endCol)).trimRight();
+        gap.text = editor.session.doc.getTextRange(gap.range).trimRight();
         if (gap.text.length < gap.minWidth) {
-            gap.endCol = gap.startCol + gap.minWidth;
+            gap.range.end.column = gap.range.start.column + gap.minWidth;
         } else if (gap.text.length >= gap.maxWidth) {
-            gap.endCol = gap.startCol + gap.maxWidth;
+            gap.range.end.column = gap.range.start.column + gap.maxWidth;
         } else {
-            gap.endCol = gap.startCol + gap.text.length;
+            gap.range.end.column = gap.range.start.column + gap.text.length;
         }
         updateGap(gap);
     }
@@ -143,9 +151,9 @@ editor.selection.on('changeCursor', function() {
     var cursor = editor.selection.getCursor();
     for (var i = 0; i < gaps.length; i++) {
         gap = gaps[i];
-        if (cursorInGap(cursor, gap) && cursor.column > gap.startCol+gap.text.length) {
-            editor.moveCursorTo(gap.startLine, gap.startCol+gap.text.length);
+        if (cursorInGap(cursor, gap) && cursor.column > gap.range.start.column+gap.text.length) {
+            editor.moveCursorTo(gap.range.start.row, gap.range.start.column+gap.text.length);
         }
-        gap.text = editor.session.doc.getTextRange(new Range(gap.startLine, gap.startCol, gap.endLine, gap.endCol)).trimRight();
+        gap.text = editor.session.doc.getTextRange(gap.range).trimRight();
     }
 });
