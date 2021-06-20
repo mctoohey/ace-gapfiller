@@ -1,33 +1,6 @@
 var editor = ace.edit("editor");
 editor.session.setMode("ace/mode/python");
 const Range = ace.require("ace/range").Range;
-
-
-// Define area of gaps.
-var gaps = [
-    {
-        range: new Range(2, 13, 2, 17),
-
-        minWidth: 4,
-        maxWidth: 10,
-        textSize: 0
-    },
-    {
-        range: new Range(3, 27, 3, 37),
-
-        minWidth: 10,
-        maxWidth: 15,
-        textSize: 0
-    },
-    {
-        range: new Range(3, 4, 3, 9),
-
-        minWidth: 5,
-        maxWidth: 10,
-        textSize: 0
-    }
-]
-
 const fillChar = " ";
 const validChars = /[ !"#$%&'()*+`\-./0-9:;<=>?@A-Z\[\]\\^_a-z{}|~]/
 
@@ -67,6 +40,70 @@ function changeGapWidth(gap, delta) {
     editor.$onChangeBackMarker();
     editor.$onChangeFrontMarker();
 }
+
+function createGap(row, column, minWidth, maxWidth) {
+    let gap = {
+        range: new Range(row, column, row, column+minWidth),
+
+        minWidth: minWidth,
+        maxWidth: maxWidth,
+        textSize: 0
+    }
+    return gap;
+}
+
+let gaps = [];
+// Extract gaps from source code and insert gaps into editor.
+function reEscape(s) {
+    var c, specials = '{[(*+\\', result='';
+    for (var i = 0; i < s.length; i++) {
+        c = s[i];
+        for (var j = 0; j < specials.length; j++) {
+            if (c === specials[j]) {
+                c = '\\' + c;
+            }
+        }
+        result += c;
+    }
+    return result;
+}
+
+let code = editor.getValue();
+let lines = code.split(/\r?\n/);
+
+let sepLeft = reEscape('{[');
+let sepRight = reEscape(']}');
+let splitter = new RegExp(sepLeft + ' *((?:\\d+)|(?:\\d+- *\\d+)) *' + sepRight);
+
+let result = "";
+for (let i = 0; i < lines.length; i++) {
+    let bits = lines[i].split(splitter);
+    result += bits[0];
+    
+    let columnPos = bits[0].length;
+    for (let j = 1; j < bits.length; j += 2) {
+        let values = bits[j].split('-');
+        let minWidth = parseInt(values[0]);
+        let maxWidth = (values.length > 1 ? parseInt(values[1]) : Infinity);
+    
+        // Create new gap.
+        gaps.push(createGap(i, columnPos, minWidth, maxWidth));
+        columnPos += minWidth;
+        result += ' '.repeat(minWidth);
+        if (j + 1 < bits.length) {
+            result += bits[j+1];
+            columnPos += bits[j+1].length;
+        }
+        
+    }
+
+    if (i < lines.length-1) {
+        result += '\n';
+    }
+}
+
+editor.setValue(result);
+
 
 // Add highlight the gaps.
 for (let gap of gaps) {
