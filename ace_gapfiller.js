@@ -114,7 +114,8 @@ editor.commands.on("exec", function(e) {
     let gap = findCursorGap(cursor);
 
     if (commandName.startsWith("go")) {  // If command just moves the cursor then do nothing.
-        if (gap != null && commandName === "gotoright") {
+        if (gap != null && commandName === "gotoright" && cursor.column === gap.range.start.column+gap.textSize) {
+            // In this case we jump out of gap over the empty space that contains nothing that the user has entered.
             editor.moveCursorTo(cursor.row, gap.range.end.column+1);
         } else {
             return;
