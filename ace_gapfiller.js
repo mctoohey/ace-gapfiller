@@ -87,11 +87,15 @@ editor.commands.on("exec", function(e) {
     // console.log(e);
     // console.log(cursor)
 
-    if (commandName.startsWith("go")) {  // If command just moves the cursor then do nothing.
-        return;
-    }
-
     let gap = findCursorGap(cursor);
+
+    if (commandName.startsWith("go")) {  // If command just moves the cursor then do nothing.
+        if (gap != null && commandName === "gotoright") {
+            editor.moveCursorTo(cursor.row, gap.range.end.column+1);
+        } else {
+            return;
+        }   
+    }
 
     if (gap === null) {
         // Not in a gap
@@ -135,7 +139,7 @@ editor.commands.on("exec", function(e) {
                 }
             }
         }
-       
+        editor.selection.clearSelection(); // Keep selection clear.
     }
     e.preventDefault();
     e.stopPropagation();
