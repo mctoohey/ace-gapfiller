@@ -43,6 +43,14 @@ var gaps = [
         maxWidth: 15,
         text:"",
         textSize: 0
+    },
+    {
+        range: new Range(3, 4, 3, 9),
+
+        minWidth: 5,
+        maxWidth: 10,
+        text:"",
+        textSize: 0
     }
 ]
 
@@ -74,7 +82,8 @@ function findCursorGap(cursor) {
 // Add highlight the gaps.
 for (var i = 0; i < gaps.length; i++) {
     var gap = gaps[i];
-    editor.session.addMarker(gap.range, "ace-gap", "text");
+    editor.session.addMarker(gap.range, "ace-gap-outline", "text", false);
+    editor.session.addMarker(gap.range, "ace-gap-background", "text", false);
 }
 
 // Intercept commands sent to ace.
