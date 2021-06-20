@@ -1,39 +1,15 @@
 var editor = ace.edit("editor");
 editor.session.setMode("ace/mode/python");
-var Range = ace.require("ace/range").Range;
+const Range = ace.require("ace/range").Range;
 
 
 // Define area of gaps.
-var gaps_old = [
-    {
-        startLine: 2,
-        startCol: 13,
-        endLine: 2,
-        endCol: 17,
-
-        minWidth: 4,
-        maxWidth: 10,
-        text:""
-    },
-    {
-        startLine: 3,
-        startCol: 27,
-        endLine: 3,
-        endCol: 37,
-
-        minWidth: 10,
-        maxWidth: 15,
-        text:""
-    }
-]
-
 var gaps = [
     {
         range: new Range(2, 13, 2, 17),
 
         minWidth: 4,
         maxWidth: 10,
-        text:"",
         textSize: 0
     },
     {
@@ -41,7 +17,6 @@ var gaps = [
 
         minWidth: 10,
         maxWidth: 15,
-        text:"",
         textSize: 0
     },
     {
@@ -49,7 +24,6 @@ var gaps = [
 
         minWidth: 5,
         maxWidth: 10,
-        text:"",
         textSize: 0
     }
 ]
@@ -95,8 +69,7 @@ function changeGapWidth(gap, delta) {
 }
 
 // Add highlight the gaps.
-for (var i = 0; i < gaps.length; i++) {
-    var gap = gaps[i];
+for (let gap of gaps) {
     editor.session.addMarker(gap.range, "ace-gap-outline", "text", true);
     editor.session.addMarker(gap.range, "ace-gap-background", "text", false);
 }
@@ -167,73 +140,12 @@ editor.commands.on("exec", function(e) {
         editor.selection.clearSelection(); // Keep selection clear.
     }
     e.preventDefault();
-    e.stopPropagation();
-    return;
-
-    if (commandName.startsWith("go")) {  // If command just moves the cursor then do nothing.
-        return;
-    } else {
-        // Back space is a bit of a special case because it modifies the character before the cursor.
-        if (commandName === "backspace") {
-            cursor.column -= 1;
-        }
-        var shouldPreventDefault = true;
-        for (var i = 0; i < gaps.length; i++) {
-            // var gap = gaps[i];
-
-            if (!editor.selection.isEmpty() && (!cursorInGap(selectionRange.start, gap) || !cursorInGap(selectionRange.end, gap))) {
-                continue;
-            }
-
-            // TODO: write code that finds the nearest gap. Could later be upgraded with a binary search.
-            if (cursorInGap({row: cursor.row, column: cursor.column}, gap)) {
-                if (commandName === "backspace") { // If we get a backspace command then we insert the 'fillChar'.
-                    editor.session.remove(new Range(cursor.row, cursor.column, cursor.row, cursor.column+1));
-                    editor.session.insert({row: cursor.row, column: gap.range.end.column-1}, fillChar);   // Put new space at end so everything is shifted across.
-                    editor.moveCursorTo(cursor.row, cursor.column);
-                    if (!editor.selection.isEmpty()) {
-                        editor.moveCursorTo(selectionRange.start.row, selectionRange.start.column);
-                        editor.selection.clearSelection();
-                    }
-                    
-                } else if (commandName === "del") {
-                    editor.session.insert({row: cursor.row, column: cursor.column+1}, fillChar);
-                    shouldPreventDefault = false;
-                } else if (commandName === "insertstring") {    // Otherwise remove a 'fillChar' and fill in the gap with whatever char the user pressed.
-                    if (validChars.test(e.args)) {
-                        if (editor.selection.isEmpty()) {
-                            shouldPreventDefault = false;
-                            if (gap.text.length == (gap.range.end.column-gap.range.start.column) && (gap.range.end.column-gap.range.start.column) < gap.maxWidth) {
-                                gap.range.end.column += 1;
-                            } else if (gap.text.length < gap.maxWidth) {
-                                // console.log(gap.text)
-                                editor.session.remove(new Range(cursor.row, gap.range.end.column-1, cursor.row, gap.range.end.column));
-                            } else {
-                                shouldPreventDefault = true;
-                            }
-                            
-                        } else {
-                            editor.session.remove(new Range(cursor.row, selectionRange.start.column, cursor.row, selectionRange.start.column+e.args.length));
-                            editor.session.insert(selectionRange.start, e.args);
-                            editor.moveCursorTo(selectionRange.start.row, selectionRange.start.column+1);
-                            editor.selection.clearSelection();
-                        }
-                    }
-                }
-                
-            }
-        }
-
-        if (shouldPreventDefault) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-    }
+    e.stopPropagation();    
 });
 
 // Move cursor to where it should be if we click on a gap.
 editor.selection.on('changeCursor', function() {
-    var cursor = editor.selection.getCursor();
+    let cursor = editor.selection.getCursor();
     let gap = findCursorGap(cursor);
     if (gap != null) {
         if (cursor.column > gap.range.start.column+gap.textSize) {
