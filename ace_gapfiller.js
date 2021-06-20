@@ -79,10 +79,25 @@ function findCursorGap(cursor) {
     return null;
 }
 
+function changeGapWidth(gap, delta) {
+    gap.range.end.column += delta;
+
+    // Update any gaps that come after this one on the same line.
+    for (let other of gaps) {
+        if (other.range.start.row === gap.range.start.row && other.range.start.column > gap.range.end.column) {
+            other.range.start.column += delta;
+            other.range.end.column += delta;
+        }
+    }
+
+    editor.$onChangeBackMarker();
+    editor.$onChangeFrontMarker();
+}
+
 // Add highlight the gaps.
 for (var i = 0; i < gaps.length; i++) {
     var gap = gaps[i];
-    editor.session.addMarker(gap.range, "ace-gap-outline", "text", false);
+    editor.session.addMarker(gap.range, "ace-gap-outline", "text", true);
     editor.session.addMarker(gap.range, "ace-gap-background", "text", false);
 }
 
@@ -115,7 +130,7 @@ editor.commands.on("exec", function(e) {
             let char = e.args;
             if (validChars.test(char)) {
                 if (gap.textSize == gapWidth(gap) && gapWidth(gap) < gap.maxWidth) {    // Grow the size of gap and insert char.
-                    gap.range.end.column += 1;
+                    changeGapWidth(gap, 1);
                     gap.textSize += 1;  // Important to record that texSize has increased before insertion.
                     editor.session.insert(cursor, char);
                 } else if (gap.textSize < gap.maxWidth) {   // Insert char.
@@ -131,7 +146,7 @@ editor.commands.on("exec", function(e) {
                 editor.moveCursorTo(cursor.row, cursor.column-1);
 
                 if (gap.textSize >= gap.minWidth) {     
-                    gap.range.end.column -= 1;  // Shrink the size of the gap.
+                    changeGapWidth(gap, -1);  // Shrink the size of the gap.
                 } else {
                     editor.session.insert({row: cursor.row, column: gap.range.end.column-1}, fillChar);   // Put new space at end so everything is shifted across.
                 }
@@ -142,7 +157,7 @@ editor.commands.on("exec", function(e) {
                 editor.session.remove(new Range(cursor.row, cursor.column, cursor.row, cursor.column+1));
 
                 if (gap.textSize >= gap.minWidth) {
-                    gap.range.end.column -= 1;  // Shrink the size of the gap.
+                    changeGapWidth(gap, -1);  // Shrink the size of the gap.
                 } else {
                     editor.session.insert({row: cursor.row, column: gap.range.end.column-1}, fillChar); // Put new space at end so everything is shifted across.
                 }
@@ -214,22 +229,6 @@ editor.commands.on("exec", function(e) {
         }
     }
 });
-
-// editor.session.on('change', function(delta) {
-// // Update text that the gap stores.
-// for (var i = 0; i < gaps.length; i++) {
-//     gap = gaps[i];
-//     gap.text = editor.session.doc.getTextRange(gap.range).trimRight();
-//     if (gap.text.length < gap.minWidth) {
-//         gap.range.end.column = gap.range.start.column + gap.minWidth;
-//     } else if (gap.text.length >= gap.maxWidth) {
-//         gap.range.end.column = gap.range.start.column + gap.maxWidth;
-//     } else {
-//         gap.range.end.column = gap.range.start.column + gap.text.length;
-//     }
-// }
-    
-// });
 
 // Move cursor to where it should be if we click on a gap.
 editor.selection.on('changeCursor', function() {
