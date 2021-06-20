@@ -52,6 +52,10 @@ var editor = ace.edit("editor");
                 cursor.row <= gap.range.end.row && cursor.column < gap.range.end.column);
     }
 
+    // function updateGap(gap) {
+    //     // Need better way to do this. need to give gaps an id and store when this changes?
+    // }
+
     // Highlight the gaps.
     for (var i = 0; i < gaps.length; i++) {
         var gap = gaps[i];
@@ -141,7 +145,6 @@ var editor = ace.edit("editor");
         } else {
             gap.range.end.column = gap.range.start.column + gap.text.length;
         }
-        updateGap(gap);
     }
     
 });
