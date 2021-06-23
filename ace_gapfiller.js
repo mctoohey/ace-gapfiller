@@ -51,9 +51,14 @@ function Gap(editor, row, column, minWidth, maxWidth=Infinity, minHeight=1, maxH
 
     this.lineSizes = Array(minHeight).fill(0);
 
-    this.markerRanges = [];
+    this.markers = [];
     for (let i=0; i < minHeight; i++) {
-        this.markerRanges.push(new Range(row+i, column, row+i, column+minWidth));
+        let ids = [];
+        let markerRange = new Range(row+i, column, row+i, column+minWidth);
+        ids.push(this.editor.session.addMarker(markerRange, "ace-gap-background", "text", false));
+        ids.push(this.editor.session.addMarker(markerRange, "ace-gap-outline", "text", true));
+        
+        this.markers.push({ids: ids, range: markerRange});
     }
 
     // Store all insertions that need to be made when the gap is updated.
@@ -73,9 +78,9 @@ Gap.prototype.updateLineSize = function(row, delta) {
 }
 
 Gap.prototype.updateMarkerRanges = function() {
-    for (let markerRange of this.markerRanges) {
-        markerRange.start.column = this.range.start.column;
-        markerRange.end.column = this.range.end.column;
+    for (let marker of this.markers) {
+        marker.range.start.column = this.range.start.column;
+        marker.range.end.column = this.range.end.column;
     }
 }
 
@@ -85,15 +90,21 @@ Gap.prototype.getWidth = function() {
 
 Gap.prototype.insertLine = function(row) {
     let markerRange = new Range(this.range.end.row, this.range.start.column, this.range.end.row, this.range.end.column);
-    this.markerRanges.push(markerRange);
-    editor.session.addMarker(markerRange, "ace-gap-background", "text", false);
-    editor.session.addMarker(markerRange, "ace-gap-outline", "text", true);
+    let ids = [];
+    ids.push(editor.session.addMarker(markerRange, "ace-gap-background", "text", false));
+    ids.push(editor.session.addMarker(markerRange, "ace-gap-outline", "text", true));
+    this.markers.splice(row-this.range.start.row+1, 0, {ids: ids, range: markerRange});
     this.lineSizes.splice(row-this.range.start.row+1, 0, 0);
     this.range.end.row += 1;
 }
 
 Gap.prototype.removeLine = function(row) {
     this.lineSizes.splice(row-this.range.start.row, 1);
+    let marker = this.markers[row-this.range.start.row];
+    for (let id of marker.ids) {
+        this.editor.session.removeMarker(id);
+    }
+    this.markers.splice(row-this.range.start.row, 1);
     this.range.end.row -= 1;
 }
 
@@ -202,15 +213,6 @@ editor.session.setValue(result);
 
 gaps.push(new Gap(editor, 2, 13, 4, 10, 2, 4));
 
-
-// Add highlight the gaps.
-for (let gap of gaps) {
-    for (let markerRange of gap.markerRanges) {
-        editor.session.addMarker(markerRange, "ace-gap-background", "text", false);
-        editor.session.addMarker(markerRange, "ace-gap-outline", "text", true);
-    }
-}
-
 // Intercept commands sent to ace.
 editor.commands.on("exec", function(e) { 
     let cursor = editor.selection.getCursor();
@@ -268,8 +270,9 @@ editor.commands.on("exec", function(e) {
                 if (gap.calculateLineSize(cursor.row) < gap.getWidth()) {     
                     editor.session.insert({row: cursor.row, column: gap.range.end.column-1}, fillChar);   // Put new space at end so everything is shifted across.
                 }                    
-            } else if (cursor.column === gap.range.start.column && cursor.row > gap.range.start.row) {
-                // gap.removeLine(cursor.row);
+            } else if (cursor.column === gap.range.start.column && cursor.row > gap.range.start.row+gap.minHeight-1) {
+                gap.removeLine(cursor.row);
+                editor.moveCursorTo(cursor.row-1, gap.range.end.column);
             }
         } else if (commandName === "del") {
             if (cursor.column < gap.range.start.column+gap.calculateLineSize(cursor.row) && gap.calculateLineSize(cursor.row) > 0) {
