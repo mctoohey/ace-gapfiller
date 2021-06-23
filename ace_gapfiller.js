@@ -1,6 +1,6 @@
 var editor = ace.edit("editor");
 editor.session.setMode("ace/mode/python");
-editor.setFontSize(12)
+editor.setFontSize(26)
 const Range = ace.require("ace/range").Range;
 const fillChar = " ";
 const validChars = /[ !"#$%&'()*+`\-./0-9:;<=>?@A-Z\[\]\\^_a-z{}|~]/
