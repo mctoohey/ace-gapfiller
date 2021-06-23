@@ -55,6 +55,9 @@ function Gap(editor, row, column, minWidth, maxWidth=Infinity, minHeight=1, maxH
     for (let i=0; i < minHeight; i++) {
         this.markerRanges.push(new Range(row+i, column, row+i, column+minWidth));
     }
+
+    // Store all insertions that need to be made when the gap is updated.
+    this.insertions = [];
 }
 
 Gap.prototype.calculateLineSize = function(row) {
@@ -62,9 +65,11 @@ Gap.prototype.calculateLineSize = function(row) {
 }
 
 Gap.prototype.updateLineSize = function(row, delta) {
-    console.log(delta);
     this.lineSizes[row-this.range.start.row] += delta;
-    console.log(this.lineSizes);
+    let newWidth = Math.max(this.minWidth, ...this.lineSizes);
+    if (newWidth !== (this.range.end.column-this.range.start.column)) {
+        this.setWidth(newWidth);
+    }
 }
 
 Gap.prototype.updateMarkerRanges = function() {
@@ -72,6 +77,10 @@ Gap.prototype.updateMarkerRanges = function() {
         markerRange.start.column = this.range.start.column;
         markerRange.end.column = this.range.end.column;
     }
+}
+
+Gap.prototype.getWidth = function() {
+    return this.range.end.column-this.range.start.column;
 }
 
 Gap.prototype.insertLine = function(row) {
@@ -83,7 +92,19 @@ Gap.prototype.insertLine = function(row) {
     this.range.end.row += 1;
 }
 
-Gap.prototype.changeWidth = function(delta) {
+Gap.prototype.removeLine = function(row) {
+    this.lineSizes.splice(row-this.range.start.row, 1);
+    this.range.end.row -= 1;
+}
+
+Gap.prototype.addInsertion = function(insertion) {
+    this.insertions.push(insertion);
+}
+
+Gap.prototype.setWidth = function(newWidth) {
+    let cursor = this.editor.selection.getCursor();  // Current position of cursor.
+    let delta = newWidth - (this.range.end.column - this.range.start.column);
+    console.log(delta);
     this.range.end.column += delta;
     this.updateMarkerRanges();
 
@@ -98,34 +119,33 @@ Gap.prototype.changeWidth = function(delta) {
 
     if (delta > 0) {
         for (let row = this.range.start.row; row < this.range.end.row; row++) {
-            this.editor.session.insert({row: row, column: this.range.end.column-1}, fillChar.repeat(delta));
+            if (this.calculateLineSize(row) < newWidth) {
+                this.editor.session.insert({row: row, column: this.range.end.column-1}, fillChar.repeat(delta));
+            }
         }
     } else {
         for (let row = this.range.start.row; row < this.range.end.row; row++) {
             this.editor.session.remove(new Range(row, this.range.end.column+delta+1, row, this.range.end.column+1));
         }
     }
-    
+
+    this.editor.moveCursorTo(cursor.row, cursor.column);    // Restore cursor to old position.
 
     this.editor.$onChangeBackMarker();
     this.editor.$onChangeFrontMarker();
 }
 
-function changeGapWidth(gap, delta) {
-    gap.range.end.column += delta;
-    gap.updateMarkerRanges();
-
-    // Update any gaps that come after this one on the same line.
-    for (let other of gaps) {
-        if (other.range.start.row === gap.range.start.row && other.range.start.column > gap.range.end.column) {
-            other.range.start.column += delta;
-            other.range.end.column += delta;
-            other.updateMarkerRanges();
-        }
+Gap.prototype.update = function() {
+    let newWidth = Math.max(this.minWidth, ...this.lineSizes);
+    if (newWidth !== (this.range.end.column-this.range.start.column)) {
+        this.setWidth(newWidth);
     }
 
-    editor.$onChangeBackMarker();
-    editor.$onChangeFrontMarker();
+    // Make insertions.
+    for (let insertion of this.insertions) {
+        editor.session.replace(Range.fromPoints(insertion.pos, {row: insertion.pos.row, column: insertion.pos.column+insertion.text.length}), insertion.text);
+    }
+    this.insertions = [];
 }
 
 let gaps = [];
@@ -220,13 +240,14 @@ editor.commands.on("exec", function(e) {
         if (commandName === "insertstring") {
             let char = e.args;
             if (validChars.test(char)) {
-                if (gap.calculateLineSize(cursor.row) == gapWidth(gap) && gapWidth(gap) < gap.maxWidth) {    // Grow the size of gap and insert char.
-                    gap.changeWidth(1);
-                    gap.updateLineSize(cursor.row, 1);  // Important to record that texSize has increased before insertion.
-                    editor.session.replace(Range.fromPoints(cursor, {row: cursor.row, column: cursor.column+1}), char);
+                if (gap.calculateLineSize(cursor.row) == gap.getWidth() && gap.getWidth() < gap.maxWidth) {    // Grow the size of gap and insert char.
+                    gap.updateLineSize(cursor.row, 1);  // Important to record that line size has increased before insertion.;
+                    editor.session.remove(new Range(cursor.row, gap.range.end.column-1, cursor.row, gap.range.end.column));
+                    editor.session.insert(cursor, char);
                 } else if (gap.calculateLineSize(cursor.row) < gap.maxWidth) {   // Insert char.
+                    editor.session.remove(new Range(cursor.row, gap.range.end.column-1, cursor.row, gap.range.end.column));
                     gap.updateLineSize(cursor.row, 1);  // Important to record that texSize has increased before insertion.
-                    editor.session.replace(Range.fromPoints(cursor, {row: cursor.row, column: cursor.column+1}), char);
+                    editor.session.insert(cursor, char);
                 }
             } else if (char === '\n' && gap.isMultiline) {  // Handle insertion of newline.
                 if (gap.range.end.row - gap.range.start.row < gap.maxHeight) {
@@ -242,23 +263,21 @@ editor.commands.on("exec", function(e) {
             }
         } else if (commandName === "backspace") {
             if (cursor.column > gap.range.start.column && gap.calculateLineSize(cursor.row) > 0) {
+                editor.session.remove(new Range(cursor.row, cursor.column-1, cursor.row, cursor.column));
                 gap.updateLineSize(cursor.row, -1);
-                if (gap.calculateLineSize(cursor.row) >= gap.minWidth) {     
-                    gap.changeWidth(-1);  // Shrink the size of the gap.
-                } else {
-                    editor.session.replace(Range.fromPoints({row: cursor.row, column: cursor.column-1}, cursor), fillChar);
-                }
+                if (gap.calculateLineSize(cursor.row) < gap.getWidth()) {     
+                    editor.session.insert({row: cursor.row, column: gap.range.end.column-1}, fillChar);   // Put new space at end so everything is shifted across.
+                }                    
+            } else if (cursor.column === gap.range.start.column && cursor.row > gap.range.start.row) {
+                // gap.removeLine(cursor.row);
             }
         } else if (commandName === "del") {
-            if (cursor.column < gap.range.end.column && gap.calculateLineSize(cursor.row) > 0) {
-                gap.updateLineSize(cursor.row, -1);
+            if (cursor.column < gap.range.start.column+gap.calculateLineSize(cursor.row) && gap.calculateLineSize(cursor.row) > 0) {
                 editor.session.remove(new Range(cursor.row, cursor.column, cursor.row, cursor.column+1));
-
-                if (gap.calculateLineSize(cursor.row) >= gap.minWidth) {
-                    changeGapWidth(gap, -1);  // Shrink the size of the gap.
-                } else {
+                gap.updateLineSize(cursor.row, -1);
+                if (gap.calculateLineSize(cursor.row) < gap.getWidth()) {
                     editor.session.insert({row: cursor.row, column: gap.range.end.column-1}, fillChar); // Put new space at end so everything is shifted across.
-                }
+                } 
             }
         }
         editor.selection.clearSelection(); // Keep selection clear.
