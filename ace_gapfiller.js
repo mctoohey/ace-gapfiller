@@ -164,7 +164,7 @@ editor.commands.on("exec", function(e) {
                 }
             }
         } else if (commandName === "del") {
-            if (cursor.column < gap.range.end.column && gap.textSize > 0) {
+            if (cursor.column < gap.range.start.column + gap.textSize && gap.textSize > 0) {
                 gap.textSize -= 1;
                 editor.session.remove(new Range(cursor.row, cursor.column, cursor.row, cursor.column+1));
 
