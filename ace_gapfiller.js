@@ -1,3 +1,5 @@
+// Script for creating  ace editor with gaps to fill in.
+
 var editor = ace.edit("editor");
 editor.session.setMode("ace/mode/python");
 editor.setFontSize(26)
