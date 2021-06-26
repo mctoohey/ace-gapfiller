@@ -318,9 +318,9 @@ editor.commands.on("exec", function(e) {
             }
         } else if (commandName === "del") {
             if (cursor.column < gap.range.start.column+gap.calculateLineSize(cursor.row) && gap.calculateLineSize(cursor.row) > 0) {
-                editor.session.remove(new Range(cursor.row, cursor.column, cursor.row, cursor.column+1));
                 gap.updateLineSize(cursor.row, -1);
                 if (gap.calculateLineSize(cursor.row) < gap.getWidth()) {
+                    editor.session.remove(new Range(cursor.row, cursor.column, cursor.row, cursor.column+1));
                     editor.session.insert({row: cursor.row, column: gap.range.end.column-1}, fillChar); // Put new space at end so everything is shifted across.
                 } 
             }
