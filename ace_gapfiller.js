@@ -108,10 +108,6 @@ Gap.prototype.removeLine = function(row) {
     this.range.end.row -= 1;
 }
 
-Gap.prototype.addInsertion = function(insertion) {
-    this.insertions.push(insertion);
-}
-
 Gap.prototype.setWidth = function(newWidth) {
     let cursor = this.editor.selection.getCursor();  // Current position of cursor.
     let delta = newWidth - (this.range.end.column - this.range.start.column);
@@ -144,19 +140,6 @@ Gap.prototype.setWidth = function(newWidth) {
 
     this.editor.$onChangeBackMarker();
     this.editor.$onChangeFrontMarker();
-}
-
-Gap.prototype.update = function() {
-    let newWidth = Math.max(this.minWidth, ...this.lineSizes);
-    if (newWidth !== (this.range.end.column-this.range.start.column)) {
-        this.setWidth(newWidth);
-    }
-
-    // Make insertions.
-    for (let insertion of this.insertions) {
-        editor.session.replace(Range.fromPoints(insertion.pos, {row: insertion.pos.row, column: insertion.pos.column+insertion.text.length}), insertion.text);
-    }
-    this.insertions = [];
 }
 
 let gaps = [];
