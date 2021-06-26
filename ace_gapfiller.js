@@ -134,6 +134,7 @@ Gap.prototype.removeLine = function(row) {
     this.markerRanges.pop();
     this.range.end.row -= 1;
     this.updateMarkerCSS();
+    this.editor.session.remove(new Range(row, 0, row+1, 0));
 }
 
 Gap.prototype.setWidth = function(newWidth) {
