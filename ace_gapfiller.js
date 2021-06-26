@@ -1,8 +1,9 @@
 var editor = ace.edit("editor");
 editor.session.setMode("ace/mode/python");
-editor.setFontSize(26)
+editor.setFontSize(26);
+editor.setOption("displayIndentGuides", false);
 const Range = ace.require("ace/range").Range;
-const fillChar = ".";
+const fillChar = " ";
 const validChars = /[ !"#$%&'()*+`,\-./0-9:;<=>?@A-Z\[\]\\^_a-z{}|~]/
 
 // Return if cursor in gap (including end of the gap).
