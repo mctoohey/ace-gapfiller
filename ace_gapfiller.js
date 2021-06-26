@@ -86,14 +86,12 @@ Gap.prototype.updateLineSize = function(row, delta) {
 
 Gap.prototype.updateMarkerRanges = function() {
     let row = this.range.start.row;
-    console.log(row)
     for (let markerRange of this.markerRanges) {
         markerRange.start.row = row;
         markerRange.end.row = row;
         markerRange.start.column = this.range.start.column;
         markerRange.end.column = this.range.end.column;
         row += 1;
-        console.log(row)
     }
 }
 
