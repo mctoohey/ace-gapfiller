@@ -2,7 +2,7 @@ var editor = ace.edit("editor");
 editor.session.setMode("ace/mode/python");
 editor.setFontSize(26)
 const Range = ace.require("ace/range").Range;
-const fillChar = "_";
+const fillChar = ".";
 const validChars = /[ !"#$%&'()*+`\-./0-9:;<=>?@A-Z\[\]\\^_a-z{}|~]/
 
 // Return if cursor in gap (including end of the gap).
@@ -79,16 +79,21 @@ Gap.prototype.updateMarkerCSS = function() {
 Gap.prototype.updateLineSize = function(row, delta) {
     this.lineSizes[row-this.range.start.row] += delta;
     let newWidth = Math.max(this.minWidth, ...this.lineSizes);
-    console.log(newWidth);
     if (newWidth !== (this.range.end.column-this.range.start.column)) {
         this.setWidth(newWidth);
     }
 }
 
 Gap.prototype.updateMarkerRanges = function() {
+    let row = this.range.start.row;
+    console.log(row)
     for (let markerRange of this.markerRanges) {
+        markerRange.start.row = row;
+        markerRange.end.row = row;
         markerRange.start.column = this.range.start.column;
         markerRange.end.column = this.range.end.column;
+        row += 1;
+        console.log(row)
     }
 }
 
@@ -105,6 +110,7 @@ Gap.prototype.insertLine = function(cursor) {
             this.lineSizes.splice(cursor.row-this.range.start.row+1, 0, 0);
             this.range.end.row += 1;
             editor.moveCursorTo(cursor.row+1, this.range.start.column);
+            shiftLowerGaps(this, 1);
         } else {
             editor.moveCursorTo(cursor.row+1, cursor.column);
         }
@@ -120,7 +126,6 @@ Gap.prototype.insertLine = function(cursor) {
     this.lineSizes[cursor.row-this.range.start.row] -= textAfterCursor.length;
     this.updateLineSize(cursor.row+1, textAfterCursor.length);
     
-    console.log(textAfterCursor);
     this.updateMarkerCSS();
 }
 
@@ -134,7 +139,6 @@ Gap.prototype.removeLine = function(row) {
 Gap.prototype.setWidth = function(newWidth) {
     let cursor = this.editor.selection.getCursor();  // Current position of cursor.
     let delta = newWidth - (this.range.end.column - this.range.start.column);
-    console.log(delta);
     this.range.end.column += delta;
     this.updateMarkerRanges();
 
@@ -163,6 +167,16 @@ Gap.prototype.setWidth = function(newWidth) {
 
     this.editor.$onChangeBackMarker();
     this.editor.$onChangeFrontMarker();
+}
+
+function shiftLowerGaps(gap, delta) {
+    for (let other of gaps) {
+        if (other.range.start.row >= gap.range.end.row) {
+            other.range.start.row += delta;
+            other.range.end.row += delta;
+            other.updateMarkerRanges();
+        }
+    }
 }
 
 let gaps = [];
