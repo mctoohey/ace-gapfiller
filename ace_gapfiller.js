@@ -27,17 +27,6 @@ function findCursorGap(cursor) {
     return null;
 }
 
-// function createGap(row, column, minWidth, maxWidth) {
-//     let gap = {
-//         range: new Range(row, column, row, column+minWidth),
-
-//         minWidth: minWidth,
-//         maxWidth: maxWidth,
-//         textSize: 0
-//     }
-//     return gap;
-// }
-
 function Gap(editor, row, column, minWidth, maxWidth=Infinity, minHeight=1, maxHeight=1) {
     this.editor = editor;
 
@@ -89,6 +78,7 @@ Gap.prototype.updateMarkerCSS = function() {
 Gap.prototype.updateLineSize = function(row, delta) {
     this.lineSizes[row-this.range.start.row] += delta;
     let newWidth = Math.max(this.minWidth, ...this.lineSizes);
+    console.log(newWidth);
     if (newWidth !== (this.range.end.column-this.range.start.column)) {
         this.setWidth(newWidth);
     }
@@ -105,22 +95,37 @@ Gap.prototype.getWidth = function() {
     return this.range.end.column-this.range.start.column;
 }
 
-Gap.prototype.insertLine = function(row) {
-    let markerRange = new Range(this.range.end.row, this.range.start.column, this.range.end.row, this.range.end.column);
-    this.markerRanges.splice(row-this.range.start.row+1, 0, markerRange);
-    this.lineSizes.splice(row-this.range.start.row+1, 0, 0);
-    this.range.end.row += 1;
+Gap.prototype.insertLine = function(cursor) {
+    if (this.range.end.row - this.range.start.row < this.maxHeight) {
+        if (cursor.row === this.range.end.row-1 || this.calculateLineSize(cursor.row+1) > 0) {
+            this.editor.session.insert({row: cursor.row+1, column: 0}, fillChar.repeat(this.range.end.column)+'\n');  // Add new line
+            let markerRange = new Range(this.range.end.row, this.range.start.column, this.range.end.row, this.range.end.column);
+            this.markerRanges.splice(cursor.row-this.range.start.row+1, 0, markerRange);
+            this.lineSizes.splice(cursor.row-this.range.start.row+1, 0, 0);
+            this.range.end.row += 1;
+            editor.moveCursorTo(cursor.row+1, this.range.start.column);
+        } else {
+            editor.moveCursorTo(cursor.row+1, cursor.column);
+        }
+    }
+
+    let rangeAfterCursor = new Range(cursor.row, cursor.column, cursor.row, this.range.start.column+this.calculateLineSize(cursor.row));
+    let textAfterCursor = editor.session.doc.getTextRange(rangeAfterCursor);
+    editor.session.replace(rangeAfterCursor, fillChar.repeat(textAfterCursor.length));
+    editor.session.replace(new Range(cursor.row+1, this.range.start.column, cursor.row+1, this.range.start.column+textAfterCursor.length), textAfterCursor);
+    
+    this.lineSizes[cursor.row-this.range.start.row] -= textAfterCursor.length;
+    this.updateLineSize(cursor.row+1, textAfterCursor.length);
+    
+    console.log(textAfterCursor);
     this.updateMarkerCSS();
 }
 
 Gap.prototype.removeLine = function(row) {
-    console.log(this.lineSizes);
     this.lineSizes.splice(row-this.range.start.row, 1);
     this.markerRanges.pop();
     this.range.end.row -= 1;
     this.updateMarkerCSS();
-    console.log(this.lineSizes);
-    console.log(this.markerRanges);
 }
 
 Gap.prototype.setWidth = function(newWidth) {
@@ -147,7 +152,7 @@ Gap.prototype.setWidth = function(newWidth) {
         }
     } else {
         for (let row = this.range.start.row; row < this.range.end.row; row++) {
-            this.editor.session.remove(new Range(row, this.range.end.column+delta+1, row, this.range.end.column+1));
+            this.editor.session.remove(new Range(row, this.range.end.column, row, this.range.end.column-delta));
         }
     }
 
@@ -250,16 +255,7 @@ editor.commands.on("exec", function(e) {
                     editor.session.insert(cursor, char);
                 }
             } else if (char === '\n' && gap.isMultiline) {  // Handle insertion of newline.
-                if (gap.range.end.row - gap.range.start.row < gap.maxHeight) {
-                    if (cursor.row === gap.range.end.row-1 || gap.calculateLineSize(cursor.row+1) > 0) {
-                        gap.insertLine(cursor.row);
-                        editor.session.insert({row: cursor.row+1, column: 0}, fillChar.repeat(gap.range.end.column)+'\n');
-                        editor.moveCursorTo(cursor.row+1, gap.range.start.column);
-                    } else {
-                        editor.moveCursorTo(cursor.row+1, cursor.column);
-                    }
-                    
-                }
+                gap.insertLine(cursor);
             }
         } else if (commandName === "backspace") {
             if (cursor.column > gap.range.start.column && gap.calculateLineSize(cursor.row) > 0) {
