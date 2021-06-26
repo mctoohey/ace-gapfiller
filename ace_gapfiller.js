@@ -129,12 +129,21 @@ Gap.prototype.insertLine = function(cursor) {
     this.updateMarkerCSS();
 }
 
-Gap.prototype.removeLine = function(row) {
-    this.lineSizes.splice(row-this.range.start.row, 1);
+Gap.prototype.removeLine = function(cursor) {
+    let rangeAfterCursor = new Range(cursor.row, cursor.column, cursor.row, this.range.start.column+this.calculateLineSize(cursor.row));
+    let textAfterCursor = editor.session.doc.getTextRange(rangeAfterCursor);
+    
+    editor.session.replace(new Range(cursor.row-1, this.range.start.column+this.calculateLineSize(cursor.row-1), cursor.row-1, this.range.start.column+this.calculateLineSize(cursor.row-1)+textAfterCursor.length), textAfterCursor);
+    this.editor.moveCursorTo(cursor.row-1, this.range.start.column+this.calculateLineSize(cursor.row-1));
+
+    this.updateLineSize(cursor.row-1, textAfterCursor.length);
+
+    this.lineSizes.splice(cursor.row-this.range.start.row, 1);
     this.markerRanges.pop();
     this.range.end.row -= 1;
     this.updateMarkerCSS();
-    this.editor.session.remove(new Range(row, 0, row+1, 0));
+    shiftLowerGaps(this, -1);
+    this.editor.session.remove(new Range(cursor.row, 0, cursor.row+1, 0));
 }
 
 Gap.prototype.setWidth = function(newWidth) {
@@ -305,8 +314,7 @@ editor.commands.on("exec", function(e) {
                     editor.moveCursorTo(cursor.row, cursor.column-1);
                 }                
             } else if (cursor.column === gap.range.start.column && cursor.row > gap.range.start.row+gap.minHeight-1) {
-                gap.removeLine(cursor.row);
-                editor.moveCursorTo(cursor.row-1, gap.range.end.column);
+                gap.removeLine(cursor);
             }
         } else if (commandName === "del") {
             if (cursor.column < gap.range.start.column+gap.calculateLineSize(cursor.row) && gap.calculateLineSize(cursor.row) > 0) {
