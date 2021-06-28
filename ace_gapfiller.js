@@ -12,10 +12,6 @@ function cursorInGap(cursor, gap) {
             cursor.row < gap.range.end.row && cursor.column <= gap.range.end.column);
 }
 
-function gapWidth(gap) {
-    return (gap.range.end.column-gap.range.start.column);
-}
-
 // Return the gap that the cursor is in. This will acutally return a gap if the cursor is 1 outside the gap
 // as this will be needed for backspace/insertion to work. Rigth now this is done as a simple
 // linear search but could be improved later. Returns null if the cursor is not in a gap.
