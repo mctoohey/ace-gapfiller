@@ -33,7 +33,6 @@ function Gap(editor, row, column, minWidth, maxWidth=Infinity, minHeight=1, maxH
     this.maxHeight = maxHeight;
 
     this.range = new Range(row, column, row+minHeight, column+minWidth);
-    this.isMultiline = maxHeight > 1;
 
     this.lineSizes = Array(minHeight).fill(0);
 
@@ -295,7 +294,7 @@ editor.commands.on("exec", function(e) {
                     gap.updateLineSize(cursor.row, 1);  // Important to record that texSize has increased before insertion.
                     editor.session.insert(cursor, char);
                 }
-            } else if (char === '\n' && gap.isMultiline) {  // Handle insertion of newline.
+            } else if (char === '\n') {  // Handle insertion of newline.
                 gap.insertLine(cursor);
             }
         } else if (commandName === "backspace") {
@@ -310,6 +309,8 @@ editor.commands.on("exec", function(e) {
                 }                
             } else if (cursor.column === gap.range.start.column && cursor.row > gap.range.start.row+gap.minHeight-1) {
                 gap.removeLine(cursor);
+            } else if (cursor.column === gap.range.start.column && cursor.row > gap.range.start.row) {
+                editor.moveCursorTo(cursor.row-1, gap.range.start.column+gap.calculateLineSize(cursor.row-1));
             }
         } else if (commandName === "del") {
             if (cursor.column < gap.range.start.column+gap.calculateLineSize(cursor.row) && gap.calculateLineSize(cursor.row) > 0) {
