@@ -4,7 +4,7 @@ var editor = ace.edit("editor");
 editor.session.setMode("ace/mode/python");
 editor.setFontSize(26)
 const Range = ace.require("ace/range").Range;
-const fillChar = " ";
+const fillChar = ".";
 const validChars = /[ !"#$%&'()*+`\-./0-9:;<=>?@A-Z\[\]\\^_a-z{}|~]/
 
 // Return the gap that the cursor is in. This will acutally return a gap if the cursor is 1 outside the gap
@@ -78,6 +78,10 @@ Gap.prototype.deleteChar = function(gaps, pos) {
     } else {
         this.editor.session.insert({row: pos.row, column: this.range.end.column-1}, fillChar); // Put new space at end so everything is shifted across.
     }
+}
+
+Gap.prototype.getText = function() {
+    return this.editor.session.getTextRange(new Range(this.range.start.row, this.range.start.column, this.range.end.row, this.range.start.column+this.textSize));
 }
 
 
@@ -160,6 +164,7 @@ editor.commands.on("exec", function(e) {
             if (validChars.test(char)) {    
                 gap.insertChar(gaps, cursor, char);
             }
+            console.log(gap.getText());
         } else if (commandName === "backspace") {
             // Only delete chars that are actually in the gap.
             if (cursor.column > gap.range.start.column && gap.textSize > 0) {
