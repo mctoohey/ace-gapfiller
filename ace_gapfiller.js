@@ -69,6 +69,17 @@ Gap.prototype.insertChar = function(gaps, pos, char) {
     }
 }
 
+Gap.prototype.deleteChar = function(gaps, pos) {
+    this.textSize -= 1;
+    this.editor.session.remove(new Range(pos.row, pos.column, pos.row, pos.column+1));
+
+    if (this.textSize >= this.minWidth) {
+        this.changeWidth(gaps, -1);  // Shrink the size of the gap.
+    } else {
+        this.editor.session.insert({row: pos.row, column: this.range.end.column-1}, fillChar); // Put new space at end so everything is shifted across.
+    }
+}
+
 
 let gaps = [];
 // Extract gaps from source code and insert gaps into editor.
@@ -146,31 +157,19 @@ editor.commands.on("exec", function(e) {
         // User is not selecting multiple characters.
         if (commandName === "insertstring") {
             let char = e.args;
-            if (validChars.test(char)) {    // Allow allow user to insert 'valid' chars.
+            // Only allow user to insert 'valid' chars.
+            if (validChars.test(char)) {    
                 gap.insertChar(gaps, cursor, char);
             }
         } else if (commandName === "backspace") {
+            // Only delete chars that are actually in the gap.
             if (cursor.column > gap.range.start.column && gap.textSize > 0) {
-                gap.textSize -= 1;
-                editor.session.remove(new Range(cursor.row, cursor.column-1, cursor.row, cursor.column));
-                editor.moveCursorTo(cursor.row, cursor.column-1);
-
-                if (gap.textSize >= gap.minWidth) {     
-                    gap.changeWidth(gaps, -1); // Shrink the size of the gap.
-                } else {
-                    editor.session.insert({row: cursor.row, column: gap.range.end.column-1}, fillChar);   // Put new space at end so everything is shifted across.
-                }
+                gap.deleteChar(gaps, {row: cursor.row, column: cursor.column-1});
             }
         } else if (commandName === "del") {
+            // Only delete chars that are actually in the gap.
             if (cursor.column < gap.range.start.column + gap.textSize && gap.textSize > 0) {
-                gap.textSize -= 1;
-                editor.session.remove(new Range(cursor.row, cursor.column, cursor.row, cursor.column+1));
-
-                if (gap.textSize >= gap.minWidth) {
-                    changeGapWidth(gap, -1);  // Shrink the size of the gap.
-                } else {
-                    editor.session.insert({row: cursor.row, column: gap.range.end.column-1}, fillChar); // Put new space at end so everything is shifted across.
-                }
+                gap.deleteChar(gaps, cursor);
             }
         }
         editor.selection.clearSelection(); // Keep selection clear.
