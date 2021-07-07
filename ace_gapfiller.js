@@ -7,10 +7,6 @@ const Range = ace.require("ace/range").Range;
 const fillChar = " ";
 const validChars = /[ !"#$%&'()*+`\-./0-9:;<=>?@A-Z\[\]\\^_a-z{}|~]/
 
-function gapWidth(gap) {
-    return (gap.range.end.column-gap.range.start.column);
-}
-
 // Return the gap that the cursor is in. This will acutally return a gap if the cursor is 1 outside the gap
 // as this will be needed for backspace/insertion to work. Rigth now this is done as a simple
 // linear search but could be improved later. Returns null if the cursor is not in a gap.
@@ -40,6 +36,10 @@ function Gap(editor, row, column, minWidth, maxWidth=Infinity) {
 Gap.prototype.cursorInGap = function(cursor) {
     return (cursor.row >= this.range.start.row && cursor.column >= this.range.start.column  && 
         cursor.row <= this.range.end.row && cursor.column <= this.range.end.column);
+}
+
+Gap.prototype.getWidth = function() {
+    return (this.range.end.column-this.range.start.column);
 }
 
 function changeGapWidth(gap, delta) {
@@ -145,7 +145,7 @@ editor.commands.on("exec", function(e) {
         if (commandName === "insertstring") {
             let char = e.args;
             if (validChars.test(char)) {
-                if (gap.textSize == gapWidth(gap) && gapWidth(gap) < gap.maxWidth) {    // Grow the size of gap and insert char.
+                if (gap.textSize === gap.getWidth() && gap.getWidth() < gap.maxWidth) {    // Grow the size of gap and insert char.
                     changeGapWidth(gap, 1);
                     gap.textSize += 1;  // Important to record that texSize has increased before insertion.
                     editor.session.insert(cursor, char);
