@@ -63,7 +63,7 @@ Gap.prototype.insertChar = function(gaps, pos, char) {
         this.textSize += 1;  // Important to record that texSize has increased before insertion.
         this.editor.session.insert(pos, char);
     } else if (this.textSize < this.maxWidth) {   // Insert char.
-        editor.session.remove(new Range(pos.row, this.range.end.column-1, pos.row, this.range.end.column));
+        this.editor.session.remove(new Range(pos.row, this.range.end.column-1, pos.row, this.range.end.column));
         this.textSize += 1;  // Important to record that texSize has increased before insertion.
         this.editor.session.insert(pos, char);
     }
