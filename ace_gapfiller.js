@@ -152,7 +152,6 @@ editor.commands.on("exec", function(e) {
 
     if (gap === null) {
         // Not in a gap
-
     } else if (editor.selection.isEmpty()) {
         // User is not selecting multiple characters.
         if (commandName === "insertstring") {
@@ -182,7 +181,7 @@ editor.commands.on("exec", function(e) {
 editor.selection.on('changeCursor', function() {
     let cursor = editor.selection.getCursor();
     let gap = findCursorGap(cursor);
-    if (gap != null) {
+    if (gap !== null) {
         if (cursor.column > gap.range.start.column+gap.textSize) {
             editor.moveCursorTo(gap.range.start.row, gap.range.start.column+gap.textSize);
         }
