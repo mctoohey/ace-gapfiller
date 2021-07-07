@@ -57,6 +57,18 @@ Gap.prototype.changeWidth = function(gaps, delta) {
     this.editor.$onChangeFrontMarker();
 }
 
+Gap.prototype.insertChar = function(gaps, pos, char) {
+    if (this.textSize === this.getWidth() && this.getWidth() < this.maxWidth) {    // Grow the size of gap and insert char.
+        this.changeWidth(gaps, 1);
+        this.textSize += 1;  // Important to record that texSize has increased before insertion.
+        this.editor.session.insert(pos, char);
+    } else if (this.textSize < this.maxWidth) {   // Insert char.
+        editor.session.remove(new Range(pos.row, this.range.end.column-1, pos.row, this.range.end.column));
+        this.textSize += 1;  // Important to record that texSize has increased before insertion.
+        this.editor.session.insert(pos, char);
+    }
+}
+
 
 let gaps = [];
 // Extract gaps from source code and insert gaps into editor.
@@ -110,22 +122,11 @@ for (let i = 0; i < lines.length; i++) {
 
 editor.session.setValue(result);
 
-
-// Add highlight the gaps.
-// for (let gap of gaps) {
-//     editor.session.addMarker(gap.range, "ace-gap-outline", "text", true);
-//     editor.session.addMarker(gap.range, "ace-gap-background", "text", false);
-// }
-
 // Intercept commands sent to ace.
 editor.commands.on("exec", function(e) { 
     let cursor = editor.selection.getCursor();
     let commandName = e.command.name;
     selectionRange = editor.getSelectionRange();
-
-    // console.log(selectionRange);
-    // console.log(e);
-    // console.log(cursor)
 
     let gap = findCursorGap(cursor);
 
@@ -145,16 +146,8 @@ editor.commands.on("exec", function(e) {
         // User is not selecting multiple characters.
         if (commandName === "insertstring") {
             let char = e.args;
-            if (validChars.test(char)) {
-                if (gap.textSize === gap.getWidth() && gap.getWidth() < gap.maxWidth) {    // Grow the size of gap and insert char.
-                    gap.changeWidth(gaps, 1);
-                    gap.textSize += 1;  // Important to record that texSize has increased before insertion.
-                    editor.session.insert(cursor, char);
-                } else if (gap.textSize < gap.maxWidth) {   // Insert char.
-                    editor.session.remove(new Range(cursor.row, gap.range.end.column-1, cursor.row, gap.range.end.column));
-                    gap.textSize += 1;  // Important to record that texSize has increased before insertion.
-                    editor.session.insert(cursor, char);
-                }
+            if (validChars.test(char)) {    // Allow allow user to insert 'valid' chars.
+                gap.insertChar(gaps, cursor, char);
             }
         } else if (commandName === "backspace") {
             if (cursor.column > gap.range.start.column && gap.textSize > 0) {
