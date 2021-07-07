@@ -7,12 +7,6 @@ const Range = ace.require("ace/range").Range;
 const fillChar = " ";
 const validChars = /[ !"#$%&'()*+`\-./0-9:;<=>?@A-Z\[\]\\^_a-z{}|~]/
 
-// Return if cursor in gap (including end of the gap).
-function cursorInGap(cursor, gap) {
-    return (cursor.row >= gap.range.start.row && cursor.column >= gap.range.start.column  && 
-            cursor.row <= gap.range.end.row && cursor.column <= gap.range.end.column);
-}
-
 function gapWidth(gap) {
     return (gap.range.end.column-gap.range.start.column);
 }
@@ -22,7 +16,7 @@ function gapWidth(gap) {
 // linear search but could be improved later. Returns null if the cursor is not in a gap.
 function findCursorGap(cursor) {
     for (let gap of gaps) {
-        if (cursorInGap(cursor, gap)) {
+        if (gap.cursorInGap(cursor)) {
             return gap;
         }
     }
@@ -41,6 +35,11 @@ function Gap(editor, row, column, minWidth, maxWidth=Infinity) {
     // Create markers
     this.editor.session.addMarker(this.range, "ace-gap-outline", "text", true);
     this.editor.session.addMarker(this.range, "ace-gap-background", "text", false);
+}
+
+Gap.prototype.cursorInGap = function(cursor) {
+    return (cursor.row >= this.range.start.row && cursor.column >= this.range.start.column  && 
+        cursor.row <= this.range.end.row && cursor.column <= this.range.end.column);
 }
 
 function changeGapWidth(gap, delta) {
