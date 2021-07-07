@@ -29,6 +29,20 @@ function findCursorGap(cursor) {
     return null;
 }
 
+function Gap(editor, row, column, minWidth, maxWidth=Infinity) {
+    this.editor = editor;
+
+    this.minWidth = minWidth;
+    this.maxWidth = maxWidth;
+
+    this.range = new Range(row, column, row, column+minWidth);
+    this.textSize = 0;
+
+    // Create markers
+    this.editor.session.addMarker(this.range, "ace-gap-outline", "text", true);
+    this.editor.session.addMarker(this.range, "ace-gap-background", "text", false);
+}
+
 function changeGapWidth(gap, delta) {
     gap.range.end.column += delta;
 
@@ -42,17 +56,6 @@ function changeGapWidth(gap, delta) {
 
     editor.$onChangeBackMarker();
     editor.$onChangeFrontMarker();
-}
-
-function createGap(row, column, minWidth, maxWidth) {
-    let gap = {
-        range: new Range(row, column, row, column+minWidth),
-
-        minWidth: minWidth,
-        maxWidth: maxWidth,
-        textSize: 0
-    }
-    return gap;
 }
 
 let gaps = [];
@@ -90,7 +93,7 @@ for (let i = 0; i < lines.length; i++) {
         let maxWidth = (values.length > 1 ? parseInt(values[1]) : Infinity);
     
         // Create new gap.
-        gaps.push(createGap(i, columnPos, minWidth, maxWidth));
+        gaps.push(new Gap(editor, i, columnPos, minWidth, maxWidth));
         columnPos += minWidth;
         result += ' '.repeat(minWidth);
         if (j + 1 < bits.length) {
@@ -109,10 +112,10 @@ editor.session.setValue(result);
 
 
 // Add highlight the gaps.
-for (let gap of gaps) {
-    editor.session.addMarker(gap.range, "ace-gap-outline", "text", true);
-    editor.session.addMarker(gap.range, "ace-gap-background", "text", false);
-}
+// for (let gap of gaps) {
+//     editor.session.addMarker(gap.range, "ace-gap-outline", "text", true);
+//     editor.session.addMarker(gap.range, "ace-gap-background", "text", false);
+// }
 
 // Intercept commands sent to ace.
 editor.commands.on("exec", function(e) { 
