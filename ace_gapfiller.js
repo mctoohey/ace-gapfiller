@@ -42,20 +42,21 @@ Gap.prototype.getWidth = function() {
     return (this.range.end.column-this.range.start.column);
 }
 
-function changeGapWidth(gap, delta) {
-    gap.range.end.column += delta;
+Gap.prototype.changeWidth = function(gaps, delta) {
+    this.range.end.column += delta;
 
     // Update any gaps that come after this one on the same line.
     for (let other of gaps) {
-        if (other.range.start.row === gap.range.start.row && other.range.start.column > gap.range.end.column) {
+        if (other.range.start.row === this.range.start.row && other.range.start.column > this.range.end.column) {
             other.range.start.column += delta;
             other.range.end.column += delta;
         }
     }
 
-    editor.$onChangeBackMarker();
-    editor.$onChangeFrontMarker();
+    this.editor.$onChangeBackMarker();
+    this.editor.$onChangeFrontMarker();
 }
+
 
 let gaps = [];
 // Extract gaps from source code and insert gaps into editor.
@@ -146,7 +147,7 @@ editor.commands.on("exec", function(e) {
             let char = e.args;
             if (validChars.test(char)) {
                 if (gap.textSize === gap.getWidth() && gap.getWidth() < gap.maxWidth) {    // Grow the size of gap and insert char.
-                    changeGapWidth(gap, 1);
+                    gap.changeWidth(gaps, 1);
                     gap.textSize += 1;  // Important to record that texSize has increased before insertion.
                     editor.session.insert(cursor, char);
                 } else if (gap.textSize < gap.maxWidth) {   // Insert char.
@@ -162,7 +163,7 @@ editor.commands.on("exec", function(e) {
                 editor.moveCursorTo(cursor.row, cursor.column-1);
 
                 if (gap.textSize >= gap.minWidth) {     
-                    changeGapWidth(gap, -1);  // Shrink the size of the gap.
+                    gap.changeWidth(gaps, -1); // Shrink the size of the gap.
                 } else {
                     editor.session.insert({row: cursor.row, column: gap.range.end.column-1}, fillChar);   // Put new space at end so everything is shifted across.
                 }
