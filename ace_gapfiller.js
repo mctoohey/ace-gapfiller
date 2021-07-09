@@ -181,6 +181,7 @@ editor.commands.on("exec", function(e) {
     if (gap === null) {
         // Not in a gap
     } else if (commandName === "indent") {
+        // Instead of indenting, move to next gap.
         let nextGap = gaps[(gap.index+1)%gaps.length];
         editor.moveCursorTo(nextGap.range.start.row, nextGap.range.start.column+nextGap.textSize);
         editor.selection.clearSelection(); // Clear selection.
