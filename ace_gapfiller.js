@@ -2,7 +2,12 @@
 
 var editor = ace.edit("editor");
 editor.session.setMode("ace/mode/python");
-editor.setFontSize(26)
+editor.setFontSize(26);
+
+editor.setOptions({
+    "dragEnabled": false,
+    "displayIndentGuides": false
+});
 const Range = ace.require("ace/range").Range;
 const fillChar = ".";
 const validChars = /[ !"#$%&'()*+`\-./0-9:;<=>?@A-Z\[\]\\^_a-z{}|~]/
