@@ -200,9 +200,10 @@ editor.commands.on("exec", function(e) {
 
     } else if (!editor.selection.isEmpty() && gap.cursorInGap(selectionRange.start) && gap.cursorInGap(selectionRange.end)) {
         // User is selecting multiple characters and is in a gap.
-     
+        
         // These are the commands that remove the selected text.
         if (commandName === "insertstring" || commandName === "backspace" || commandName === "del" || commandName === "paste" || commandName === "cut") {
+            console.log(selectionRange);
             gap.deleteRange(gaps, selectionRange.start.column, selectionRange.end.column);
             editor.selection.clearSelection(); // Clear selection.
         }
@@ -215,8 +216,7 @@ editor.commands.on("exec", function(e) {
         }
     }
     if (commandName === "paste") {
-        gap.insertText(gaps, cursor.column, e.args.text);
-        
+        gap.insertText(gaps, selectionRange.start.column, e.args.text);
     }
     e.preventDefault();
     e.stopPropagation();    
