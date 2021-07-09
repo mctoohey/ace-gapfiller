@@ -80,6 +80,22 @@ Gap.prototype.deleteChar = function(gaps, pos) {
     }
 }
 
+Gap.prototype.deleteRange = function(gaps, start, end) {
+    for (let i = start; i < end; i++) {
+        if (start < this.range.start.column+this.textSize) {
+            this.deleteChar(gaps, {row: this.range.start.row, column: start});
+        }
+    }
+}
+
+Gap.prototype.insertText = function(gaps, start, text) {
+    for (let i = 0; i < text.length; i++) {
+        if (start+i < this.range.start.column+this.maxWidth) {
+            this.insertChar(gaps, {row: this.range.start.row, column: start+i}, text[i]);
+        }
+    }
+}
+
 Gap.prototype.getText = function() {
     return this.editor.session.getTextRange(new Range(this.range.start.row, this.range.start.column, this.range.end.row, this.range.start.column+this.textSize));
 }
@@ -142,7 +158,7 @@ editor.commands.on("exec", function(e) {
     let cursor = editor.selection.getCursor();
     let commandName = e.command.name;
     selectionRange = editor.getSelectionRange();
-
+    // console.log(e);
     let gap = findCursorGap(cursor);
 
     if (commandName.startsWith("go")) {  // If command just moves the cursor then do nothing.
@@ -164,7 +180,6 @@ editor.commands.on("exec", function(e) {
             if (validChars.test(char)) {    
                 gap.insertChar(gaps, cursor, char);
             }
-            console.log(gap.getText());
         } else if (commandName === "backspace") {
             // Only delete chars that are actually in the gap.
             if (cursor.column > gap.range.start.column && gap.textSize > 0) {
@@ -177,6 +192,27 @@ editor.commands.on("exec", function(e) {
             }
         }
         editor.selection.clearSelection(); // Keep selection clear.
+
+    } else if (!editor.selection.isEmpty() && gap.cursorInGap(selectionRange.start) && gap.cursorInGap(selectionRange.end)) {
+        // User is selecting multiple characters and is in a gap.
+
+        // These are the commands that remove the selected text.
+        if (commandName === "insertstring" || commandName === "backspace" || commandName === "del" || commandName === "paste") {
+            gap.deleteRange(gaps, selectionRange.start.column, selectionRange.end.column);
+            editor.selection.clearSelection(); // Clear selection.
+        }
+
+        if (commandName === "insertstring") {
+            let char = e.args;
+            if (validChars.test(char)) {    
+                gap.insertChar(gaps, selectionRange.start, char);
+            }
+        }
+    }
+    if (commandName === "paste") {
+        console.log(e);
+        gap.insertText(gaps, cursor.column, e.args.text);
+        
     }
     e.preventDefault();
     e.stopPropagation();    
@@ -192,3 +228,7 @@ editor.selection.on('changeCursor', function() {
         }
     }
 });
+
+// editor.session.on('change', function(e) {
+//     console.log(e);
+// });
