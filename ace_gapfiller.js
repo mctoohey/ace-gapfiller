@@ -130,7 +130,7 @@ let lines = code.split(/\r?\n/);
 
 let sepLeft = reEscape('{[');
 let sepRight = reEscape(']}');
-let splitter = new RegExp(sepLeft + ' *((?:\\d+)|(?:\\d+- *\\d+)) *' + sepRight);
+let splitter = new RegExp(sepLeft + ' *((?:\\d+)(?:- *\\d+)?) *' + sepRight);
 
 let result = "";
 for (let i = 0; i < lines.length; i++) {
