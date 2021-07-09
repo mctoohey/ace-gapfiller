@@ -9,7 +9,7 @@ editor.setOptions({
     "displayIndentGuides": false
 });
 const Range = ace.require("ace/range").Range;
-const fillChar = ".";
+const fillChar = " ";
 const validChars = /[ !"#$%&'()*+`\-./0-9:;<=>?@A-Z\[\]\\^_a-z{}|~]/
 
 // Return the gap that the cursor is in. This will acutally return a gap if the cursor is 1 outside the gap
@@ -223,7 +223,7 @@ editor.commands.on("exec", function(e) {
 });
 
 // Move cursor to where it should be if we click on a gap.
-editor.selection.on('changeCursor', function() {
+editor.selection.on('changeCursor', function(e) {
     let cursor = editor.selection.getCursor();
     let gap = findCursorGap(cursor);
     if (gap !== null) {
@@ -236,3 +236,25 @@ editor.selection.on('changeCursor', function() {
 // editor.session.on('change', function(e) {
 //     console.log(e);
 // });
+
+let gapToSelect = null;
+
+editor.on("tripleclick", function(e) {
+    let cursor = editor.selection.getCursor();
+    let gap = findCursorGap(cursor);
+    if (gap !== null) {
+        editor.selection.setSelectionRange(new Range(gap.range.start.row, gap.range.start.column, gap.range.start.row, gap.range.end.column), false);
+        gapToSelect = gap;
+        e.preventDefault();
+        e.stopPropagation();
+    }
+});
+
+editor.on("click", function(e) {
+    if (gapToSelect) {
+        editor.moveCursorTo(gapToSelect.range.start.row, gapToSelect.range.start.column+gapToSelect.textSize);
+        gapToSelect = null;  
+        e.preventDefault();
+        e.stopPropagation();
+    }
+});
