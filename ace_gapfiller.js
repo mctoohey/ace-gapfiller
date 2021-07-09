@@ -10,7 +10,8 @@ editor.setOptions({
 });
 const Range = ace.require("ace/range").Range;
 const fillChar = " ";
-const validChars = /[ !"#$%&'()*+`\-./0-9:;<=>?@A-Z\[\]\\^_a-z{}|~]/
+const validChars = /[ !"#$%&'()*+`\-./0-9:;<=>?@A-Z\[\]\\^_a-z{}|~]/;
+let nextIndex = 0;
 
 // Return the gap that the cursor is in. This will acutally return a gap if the cursor is 1 outside the gap
 // as this will be needed for backspace/insertion to work. Rigth now this is done as a simple
@@ -25,6 +26,8 @@ function findCursorGap(cursor) {
 }
 
 function Gap(editor, row, column, minWidth, maxWidth=Infinity) {
+    this.index = nextIndex;
+    nextIndex += 1;
     this.editor = editor;
 
     this.minWidth = minWidth;
@@ -163,7 +166,7 @@ editor.commands.on("exec", function(e) {
     let cursor = editor.selection.getCursor();
     let commandName = e.command.name;
     selectionRange = editor.getSelectionRange();
-    // console.log(e);
+    console.log(e);
     let gap = findCursorGap(cursor);
 
     if (commandName.startsWith("go")) {  // If command just moves the cursor then do nothing.
@@ -177,6 +180,10 @@ editor.commands.on("exec", function(e) {
 
     if (gap === null) {
         // Not in a gap
+    } else if (commandName === "indent") {
+        let nextGap = gaps[(gap.index+1)%gaps.length];
+        editor.moveCursorTo(nextGap.range.start.row, nextGap.range.start.column+nextGap.textSize);
+        editor.selection.clearSelection(); // Clear selection.
     } else if (editor.selection.isEmpty()) {
         // User is not selecting multiple characters.
         if (commandName === "insertstring") {
@@ -203,7 +210,6 @@ editor.commands.on("exec", function(e) {
         
         // These are the commands that remove the selected text.
         if (commandName === "insertstring" || commandName === "backspace" || commandName === "del" || commandName === "paste" || commandName === "cut") {
-            console.log(selectionRange);
             gap.deleteRange(gaps, selectionRange.start.column, selectionRange.end.column);
             editor.selection.clearSelection(); // Clear selection.
         }
