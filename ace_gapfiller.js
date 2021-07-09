@@ -10,7 +10,7 @@ editor.setOptions({
 });
 const Range = ace.require("ace/range").Range;
 const fillChar = " ";
-const validChars = /[ !"#$%&'()*+`\-./0-9:;<=>?@A-Z\[\]\\^_a-z{}|~]/;
+const validChars = /[ !"#$%&'()*+,`\-./0-9:;<=>?@A-Z\[\]\\^_a-z{}|~]/;
 let nextIndex = 0;
 
 // Return the gap that the cursor is in. This will acutally return a gap if the cursor is 1 outside the gap
@@ -222,9 +222,11 @@ editor.commands.on("exec", function(e) {
             }
         }
     }
+
     if (commandName === "paste") {
         gap.insertText(gaps, selectionRange.start.column, e.args.text);
     }
+    
     e.preventDefault();
     e.stopPropagation();    
 });
