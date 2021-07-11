@@ -166,8 +166,8 @@ editor.commands.on("exec", function(e) {
     let cursor = editor.selection.getCursor();
     let commandName = e.command.name;
     selectionRange = editor.getSelectionRange();
-    console.log(e);
     let gap = findCursorGap(cursor);
+    console.log(e);
 
     if (commandName.startsWith("go")) {  // If command just moves the cursor then do nothing.
         if (gap != null && commandName === "gotoright" && cursor.column === gap.range.start.column+gap.textSize) {
@@ -180,11 +180,17 @@ editor.commands.on("exec", function(e) {
 
     if (gap === null) {
         // Not in a gap
+        if (commandName === "selectall") {
+            editor.selection.selectAll();
+        }
     } else if (commandName === "indent") {
         // Instead of indenting, move to next gap.
         let nextGap = gaps[(gap.index+1)%gaps.length];
         editor.moveCursorTo(nextGap.range.start.row, nextGap.range.start.column+nextGap.textSize);
         editor.selection.clearSelection(); // Clear selection.
+    } else if (commandName === "selectall") {
+        // Select all text in a gap if we are in a gap.
+        editor.selection.setSelectionRange(new Range(gap.range.start.row, gap.range.start.column, gap.range.start.row, gap.range.end.column), false);
     } else if (editor.selection.isEmpty()) {
         // User is not selecting multiple characters.
         if (commandName === "insertstring") {
@@ -223,12 +229,13 @@ editor.commands.on("exec", function(e) {
         }
     }
 
-    if (commandName === "paste") {
+    // Done down here so that any selected text is removed first.
+    if (gap !== null && commandName === "paste") {
         gap.insertText(gaps, selectionRange.start.column, e.args.text);
     }
-    
+
     e.preventDefault();
-    e.stopPropagation();    
+    e.stopPropagation();
 });
 
 // Move cursor to where it should be if we click on a gap.
