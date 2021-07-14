@@ -25,6 +25,21 @@ function findCursorGap(cursor) {
     return null;
 }
 
+// Find the next gap that occurs after the current cursor position.
+// TODO: Consider using this function to find next gap even when cursor is inside a gap instead
+// Of the current method of storing the index in the gap object.
+function findNextGap(cursor) {
+    for (let gap of gaps) {
+        if (gap.range.start.row > cursor.row) {
+            return gap;
+        } else if (gap.range.start.row === cursor.row && gap.range.start.column > cursor.column) {
+            return gap;
+        }
+    }
+    // Otherwise return the first gap.
+    return gaps[0];
+}
+
 function Gap(editor, row, column, minWidth, maxWidth=Infinity) {
     this.index = nextIndex;
     nextIndex += 1;
@@ -182,6 +197,10 @@ editor.commands.on("exec", function(e) {
         // Not in a gap
         if (commandName === "selectall") {
             editor.selection.selectAll();
+        } else if (commandName === "indent") {
+            let nextGap = findNextGap(cursor);
+            editor.moveCursorTo(nextGap.range.start.row, nextGap.range.start.column+nextGap.textSize);
+            editor.selection.clearSelection(); // Clear selection.
         }
     } else if (commandName === "indent") {
         // Instead of indenting, move to next gap.
